@@ -1,6 +1,8 @@
-Flask
+joblib
+flask
 pandas
 numpy
 scikit-learn
+tensorflow
 gunicorn
-joblib
+python-dotenv
