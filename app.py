@@ -14,11 +14,14 @@
 #%cd /content/drive/MyDrive/E_Commerce_project_text_classification
 
 
-# In[12]:
+# In[13]:
 
 
 # Install dependencies
-get_ipython().system('pip install flask pyngrok python-dotenv --quiet')
+#!pip install flask pyngrok python-dotenv --quiet
+import subprocess
+
+subprocess.check_call(["pip", "install", "flask", "pyngrok", "python-dotenv"])
 
 
 # In[ ]:
