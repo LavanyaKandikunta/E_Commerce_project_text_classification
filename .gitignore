@@ -1,0 +1,44 @@
+# ===========================
+# 🐍 Python
+# ===========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ===========================
+# 🧪 Virtual Environments
+# ===========================
+venv/
+env/
+
+# ===========================
+# 📓 Jupyter / Colab Files
+# ===========================
+.ipynb_checkpoints/
+*.tmp
+*.swp
+
+# ===========================
+# 💾 Datasets and Models
+# ===========================
+Models_results/
+*.zip
+*.pkl
+*.h5
+*.keras
+*.pt
+*.ckpt
+*.csv
+!user_product_matrix.csv    # ✅ keep only this CSV file
+
+# ===========================
+# 🔐 Secrets and Configs
+# ===========================
+.env
+
+# ===========================
+# 💻 OS / Editor Files
+# ===========================
+.DS_Store
+Thumbs.db
