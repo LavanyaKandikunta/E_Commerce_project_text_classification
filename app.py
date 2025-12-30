@@ -1,27 +1,27 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 from google.colab import drive
 drive.mount('/content/drive')
 
 
-# In[2]:
+# In[5]:
 
 
 get_ipython().run_line_magic('cd', '/content/drive/MyDrive/E_Commerce_project_text_classification')
 
 
-# In[3]:
+# In[ ]:
 
 
 # Install dependencies
 get_ipython().system('pip install flask pyngrok python-dotenv --quiet')
 
 
-# In[4]:
+# In[ ]:
 
 
 from flask import Flask, request, jsonify
@@ -38,14 +38,14 @@ import pandas as pd
 # 
 # 
 
-# In[6]:
+# In[ ]:
 
 
 load_dotenv()
 ngrok.set_auth_token(os.getenv("NGROK_AUTH_TOKEN"))
 
 
-# In[7]:
+# In[ ]:
 
 
 # Kill previous ngrok tunnels
@@ -55,7 +55,7 @@ ngrok.kill()
 get_ipython().system('fuser -k 5000/tcp')
 
 
-# In[8]:
+# In[ ]:
 
 
 # Create Flask app
@@ -68,7 +68,7 @@ user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
 model = load_model("/content/drive/MyDrive/E_Commerce_project_text_classification/Models_results/DL_models/gru_model.keras")
 
 
-# In[9]:
+# In[ ]:
 
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -112,14 +112,14 @@ def recommend_products(user_name, top_n=5):
     return recommendations
 
 
-# In[10]:
+# In[ ]:
 
 
 # Stop current Flask server
 get_ipython().system('pkill -f flask')
 
 
-# In[11]:
+# In[ ]:
 
 
 @app.route("/")
@@ -163,7 +163,7 @@ print("Ngrok public URL:", public_url)
 # 
 # Solution: is to run Flask in a background using thread
 
-# In[12]:
+# In[ ]:
 
 
 import requests, json
@@ -186,6 +186,12 @@ print(json.dumps(r.json(), indent=2))
 # ✅ External API request
 # 
 # ✅ Recommendation response
+
+# In[4]:
+
+
+get_ipython().system('jupyter nbconvert --to python app.ipynb')
+
 
 # In[ ]:
 
