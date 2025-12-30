@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[6]:
 
 
-from google.colab import drive
-drive.mount('/content/drive')
+#from google.colab import drive
+#drive.mount('/content/drive')
 
 
-# In[5]:
+# In[7]:
 
 
-get_ipython().run_line_magic('cd', '/content/drive/MyDrive/E_Commerce_project_text_classification')
+#%cd /content/drive/MyDrive/E_Commerce_project_text_classification
 
 
 # In[ ]:
@@ -187,7 +187,7 @@ print(json.dumps(r.json(), indent=2))
 # 
 # ✅ Recommendation response
 
-# In[4]:
+# In[8]:
 
 
 get_ipython().system('jupyter nbconvert --to python app.ipynb')
