@@ -1,24 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[9]:
 
 
 #from google.colab import drive
 #drive.mount('/content/drive')
 
 
-# In[7]:
+# In[10]:
 
 
 #%cd /content/drive/MyDrive/E_Commerce_project_text_classification
 
 
-# In[ ]:
+# In[11]:
 
 
 # Install dependencies
-get_ipython().system('pip install flask pyngrok python-dotenv --quiet')
+#!pip install flask pyngrok python-dotenv --quiet
 
 
 # In[ ]:
