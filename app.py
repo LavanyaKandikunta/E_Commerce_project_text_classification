@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[1]:
+
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+
 # In[9]:
 
 
-#from google.colab import drive
-#drive.mount('/content/drive')
+get_ipython().run_line_magic('cd', '/content/drive/MyDrive/E_Commerce_project_text_classification')
 
 
 # In[10]:
-
-
-#%cd /content/drive/MyDrive/E_Commerce_project_text_classification
-
-
-# In[13]:
 
 
 # Install dependencies
@@ -24,7 +24,7 @@ import subprocess
 subprocess.check_call(["pip", "install", "flask", "pyngrok", "python-dotenv"])
 
 
-# In[ ]:
+# In[11]:
 
 
 from flask import Flask, request, jsonify
@@ -41,14 +41,14 @@ import pandas as pd
 # 
 # 
 
-# In[ ]:
+# In[12]:
 
 
 load_dotenv()
 ngrok.set_auth_token(os.getenv("NGROK_AUTH_TOKEN"))
 
 
-# In[ ]:
+# In[13]:
 
 
 # Kill previous ngrok tunnels
@@ -58,20 +58,39 @@ ngrok.kill()
 get_ipython().system('fuser -k 5000/tcp')
 
 
-# In[ ]:
+# In[16]:
 
 
 # Create Flask app
 app = Flask(__name__)
 
-# Load user–product matrix
-user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
+# This ensures Render finds the file inside the container, even make it universal:
+try:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # for script
+except NameError:
+    BASE_DIR = os.getcwd()  # for notebook / interactive env
 
-# Load only the chosen model
-model = load_model("/content/drive/MyDrive/E_Commerce_project_text_classification/Models_results/DL_models/gru_model.keras")
+#Load user–product matrix.
+USER_MATRIX_FILE = os.path.join(BASE_DIR, "user_product_matrix.csv")
+user_product_matrix = pd.read_csv(USER_MATRIX_FILE, index_col=0)
 
 
-# In[ ]:
+# Load only the chosen model. This prevents the API from crashing if the file is missing.
+# Build the path to your model file inside the repo
+MODEL_PATH = os.path.join(BASE_DIR, "Models_results", "DL_models", "gru_model.keras")
+
+# Load the model safely
+if os.path.exists(MODEL_PATH):
+    model = load_model(MODEL_PATH)
+else:
+    model = None
+    print("⚠️ Model file not found:", MODEL_PATH)
+
+
+#model = load_model("/content/drive/MyDrive/E_Commerce_project_text_classification/Models_results/DL_models/gru_model.keras")
+
+
+# In[17]:
 
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -115,14 +134,14 @@ def recommend_products(user_name, top_n=5):
     return recommendations
 
 
-# In[ ]:
+# In[18]:
 
 
 # Stop current Flask server
 get_ipython().system('pkill -f flask')
 
 
-# In[ ]:
+# In[19]:
 
 
 @app.route("/")
@@ -166,7 +185,7 @@ print("Ngrok public URL:", public_url)
 # 
 # Solution: is to run Flask in a background using thread
 
-# In[ ]:
+# In[20]:
 
 
 import requests, json
