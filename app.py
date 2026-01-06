@@ -18,19 +18,28 @@ app = Flask(__name__)
 # -----------------------------
 user_product_matrix = None
 
-if os.path.exists("user_product_matrix.csv"):
-    # Load only first 500 users × 200 products to stay under 512 MB
-    user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0, nrows=500)
-    user_product_matrix = user_product_matrix.iloc[:, :200]
-    print(f"✅ Loaded sample matrix: {user_product_matrix.shape[0]} users × {user_product_matrix.shape[1]} products")
-elif os.path.exists("user_product_matrix.zip"):
-    with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
-        zip_ref.extractall(".")
-    user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0, nrows=500)
-    user_product_matrix = user_product_matrix.iloc[:, :200]
-    print(f"✅ Extracted sample matrix: {user_product_matrix.shape[0]}×{user_product_matrix.shape[1]}")
-else:
-    print("⚠️ user_product_matrix file not found — API will still run but recommend() will be inactive.")
+try:
+    if os.path.exists("user_product_matrix.zip"):
+        import zipfile
+        with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
+            zip_ref.extractall(".")
+        # ✅ Load only part of the CSV to stay under 512 MB
+        user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0, nrows=500)
+        user_product_matrix = user_product_matrix.iloc[:, :200]      # first 500 users × 200 products
+
+        print(f"✅ Loaded subset {user_product_matrix.shape} for Render demo")
+    elif os.path.exists("user_product_matrix.csv"):
+        user_product_matrix = (
+            pd.read_csv("user_product_matrix.csv", index_col=0)
+              .iloc[:500, :200]
+        )
+        print(f"✅ Loaded subset {user_product_matrix.shape} for Render demo")
+    else:
+        print("⚠️ Dataset not found.")
+        user_product_matrix = pd.DataFrame()
+except Exception as e:
+    print(f"❌ Error loading dataset: {e}")
+    user_product_matrix = pd.DataFrame()
 
 # -----------------------------
 # Recommendation logic
