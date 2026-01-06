@@ -83,6 +83,17 @@ def recommend():
     recs = recommend_products(user_name, top_n)
     return jsonify({"user": user_name, "recommendations": recs})
 
+@app.route("/status")
+def status():
+    if user_product_matrix is None or user_product_matrix.empty:
+        return jsonify({"status": "⚠️ Dataset not loaded"})
+    return jsonify({
+        "status": "✅ Ready",
+        "users": len(user_product_matrix),
+        "products": user_product_matrix.shape[1]
+    })
+
+
 # -----------------------------
 # Main entry
 # -----------------------------
