@@ -30,7 +30,7 @@ Models_results/
 *.pt
 *.ckpt
 *.csv
-!user_product_matrix.csv    # ✅ keep only this CSV file
+!user_product_matrix.zip    # ✅ keep only this zip file
 
 # ===========================
 # 🔐 Secrets and Configs
