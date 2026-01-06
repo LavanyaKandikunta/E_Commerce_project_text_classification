@@ -23,10 +23,14 @@ try:
         user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
         print("✅ Loaded user_product_matrix.csv successfully")
     elif os.path.exists("user_product_matrix.zip"):
-        with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
-            zip_ref.extractall(".")
-        user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0).sample(n=500, axis=0)
-        print("✅ Loaded 500 sample users for Render demo")
+      with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
+          zip_ref.extractall(".")
+
+      # Load only a subset to reduce memory (safe for Render free tier)
+      full_df = pd.read_csv("user_product_matrix.csv", index_col=0)
+      user_product_matrix = full_df.iloc[:200, :200]  # 200 users × 200 products
+      print("✅ Loaded partial dataset (200x200) for Render demo")
+      del full_df  # free memory
     else:
         print("⚠️ user_product_matrix file not found — API will still run but recommend() will be inactive.")
 except Exception as e:
