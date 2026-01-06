@@ -4,17 +4,17 @@
 # In[1]:
 
 
-from google.colab import drive
-drive.mount('/content/drive')
+#from google.colab import drive
+#drive.mount('/content/drive')
 
 
-# In[9]:
+# In[2]:
 
 
-get_ipython().run_line_magic('cd', '/content/drive/MyDrive/E_Commerce_project_text_classification')
+#%cd /content/drive/MyDrive/E_Commerce_project_text_classification
 
 
-# In[10]:
+# In[ ]:
 
 
 # Install dependencies
@@ -24,7 +24,7 @@ import subprocess
 subprocess.check_call(["pip", "install", "flask", "pyngrok", "python-dotenv"])
 
 
-# In[11]:
+# In[ ]:
 
 
 from flask import Flask, request, jsonify
@@ -41,14 +41,14 @@ import pandas as pd
 # 
 # 
 
-# In[12]:
+# In[ ]:
 
 
 load_dotenv()
 ngrok.set_auth_token(os.getenv("NGROK_AUTH_TOKEN"))
 
 
-# In[13]:
+# In[ ]:
 
 
 # Kill previous ngrok tunnels
@@ -58,7 +58,7 @@ ngrok.kill()
 get_ipython().system('fuser -k 5000/tcp')
 
 
-# In[16]:
+# In[ ]:
 
 
 # Create Flask app
@@ -90,7 +90,7 @@ else:
 #model = load_model("/content/drive/MyDrive/E_Commerce_project_text_classification/Models_results/DL_models/gru_model.keras")
 
 
-# In[17]:
+# In[ ]:
 
 
 from sklearn.metrics.pairwise import cosine_similarity
@@ -134,14 +134,14 @@ def recommend_products(user_name, top_n=5):
     return recommendations
 
 
-# In[18]:
+# In[ ]:
 
 
 # Stop current Flask server
 get_ipython().system('pkill -f flask')
 
 
-# In[19]:
+# In[ ]:
 
 
 @app.route("/")
@@ -185,7 +185,7 @@ print("Ngrok public URL:", public_url)
 # 
 # Solution: is to run Flask in a background using thread
 
-# In[20]:
+# In[ ]:
 
 
 import requests, json
@@ -209,7 +209,7 @@ print(json.dumps(r.json(), indent=2))
 # 
 # ✅ Recommendation response
 
-# In[8]:
+# In[ ]:
 
 
 get_ipython().system('jupyter nbconvert --to python app.ipynb')
