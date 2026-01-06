@@ -14,25 +14,30 @@ import os
 app = Flask(__name__)
 
 # -----------------------------
-# Load user-product matrix safely
+# Load user-product matrix safely (sampled for Render free tier)
 # -----------------------------
 user_product_matrix = None
 
 try:
-    if os.path.exists("user_product_matrix.csv"):
-        user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
-        print("✅ Loaded user_product_matrix.csv successfully")
-    elif os.path.exists("user_product_matrix.zip"):
-      with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
-          zip_ref.extractall(".")
-
-      # Load only a subset to reduce memory (safe for Render free tier)
-      full_df = pd.read_csv("user_product_matrix.csv", index_col=0)
-      user_product_matrix = full_df.iloc[:200, :200]  # 200 users × 200 products
-      print("✅ Loaded partial dataset (200x200) for Render demo")
-      del full_df  # free memory
+    if os.path.exists("user_product_matrix.zip"):
+        import zipfile
+        with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
+            zip_ref.extractall(".")
+        # ✅ Load only part of the CSV to stay under 512 MB
+        user_product_matrix = (
+            pd.read_csv("user_product_matrix.csv", index_col=0)
+              .iloc[:500, :200]      # first 500 users × 200 products
+        )
+        print(f"✅ Loaded subset {user_product_matrix.shape} for Render demo")
+    elif os.path.exists("user_product_matrix.csv"):
+        user_product_matrix = (
+            pd.read_csv("user_product_matrix.csv", index_col=0)
+              .iloc[:500, :200]
+        )
+        print(f"✅ Loaded subset {user_product_matrix.shape} for Render demo")
     else:
-        print("⚠️ user_product_matrix file not found — API will still run but recommend() will be inactive.")
+        print("⚠️ Dataset not found.")
+        user_product_matrix = pd.DataFrame()
 except Exception as e:
     print(f"❌ Error loading dataset: {e}")
     user_product_matrix = pd.DataFrame()
