@@ -25,8 +25,8 @@ try:
     elif os.path.exists("user_product_matrix.zip"):
         with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
             zip_ref.extractall(".")
-        user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
-        print("✅ Extracted and loaded user_product_matrix.csv from zip")
+        user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0).sample(n=500, axis=0)
+        print("✅ Loaded 500 sample users for Render demo")
     else:
         print("⚠️ user_product_matrix file not found — API will still run but recommend() will be inactive.")
 except Exception as e:
