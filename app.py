@@ -152,11 +152,17 @@ def status():
         "products": user_product_matrix.shape[1] if user_product_matrix is not None else 0
     })
 
+# Disable GPU for Render
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 # ============================================================
 # 7️⃣ Run app
 # ============================================================
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 
 
 # In[ ]:
