@@ -62,6 +62,10 @@ def load_gru_model():
     if gru_model is None:
         from tensorflow.keras.models import load_model
         from tensorflow.keras.preprocessing.text import tokenizer_from_json
+        import tensorflow as tf
+
+        tf.config.set_visible_devices([], 'GPU')
+        tf.get_logger().setLevel('ERROR')
 
         with open(METADATA_FILE, "r") as f:
             metadata = json.load(f)
