@@ -10,12 +10,21 @@ import json
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.text import tokenizer_from_json
 import zipfile
 import gdown
 
 app = Flask(__name__)
+
+# ============================================================
+# Recommended setup for Render Free Tier
+# ============================================================
+
+tf.config.set_visible_devices([], 'GPU')
+tf.get_logger().setLevel('ERROR')
+
 
 # ============================================================
 # 0️⃣ Download GRU model (.keras) and metadata.json from Google Drive
