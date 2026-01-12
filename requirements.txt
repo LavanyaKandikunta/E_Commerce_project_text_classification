@@ -3,7 +3,7 @@ flask
 pandas
 numpy
 scikit-learn
-tensorflow
+tflite-runtime==2.14.0
 gunicorn
 python-dotenv
 transformers
