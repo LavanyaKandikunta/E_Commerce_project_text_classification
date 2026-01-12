@@ -5,6 +5,7 @@ numpy
 scikit-learn
 tensorflow
 gunicorn
+tflite-runtime
 python-dotenv
 transformers
 torch
