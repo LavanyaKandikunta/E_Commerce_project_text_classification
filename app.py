@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 from flask import Flask, render_template, request, jsonify
@@ -14,21 +14,21 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import zipfile
 import gdown
 
-# ================================
+# ============================================================
 # Flask app
-# ================================
+# ============================================================
 app = Flask(__name__)
 
-# ================================
+# ============================================================
 # Environment & memory optimizations
-# ================================
+# ============================================================
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
 
-# ================================
-# Download GRU model & metadata from Google Drive
-# ================================
+# ============================================================
+# Model & metadata locations (lazy download)
+# ============================================================
 MODEL_DIR = "DL_models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -38,37 +38,43 @@ METADATA_FILE_ID = "1a_txG7ddnCViQ8bAuI_UPkrBRTqpsOEq"
 MODEL_FILE = os.path.join(MODEL_DIR, "gru_model.keras")
 METADATA_FILE = os.path.join(MODEL_DIR, "metadata.json")
 
-if not os.path.exists(MODEL_FILE):
-    print("⚡ Downloading GRU model...")
-    gdown.download(f"https://drive.google.com/uc?id={MODEL_FILE_ID}", MODEL_FILE, quiet=False)
-
-if not os.path.exists(METADATA_FILE):
-    print("⚡ Downloading metadata.json...")
-    gdown.download(f"https://drive.google.com/uc?id={METADATA_FILE_ID}", METADATA_FILE, quiet=False)
-
-# ================================
-# Lazy-load GRU model + metadata
-# ================================
+# ============================================================
+# Lazy-load GRU model + metadata + download only when needed
+# ============================================================
 gru_model = None
 tokenizer = None
 label_encoder = None
 
 def load_gru_model():
+    """Downloads and loads the GRU model + metadata only when needed."""
     global gru_model, tokenizer, label_encoder
+
+    # ---- Lazy download ----
+    if not os.path.exists(MODEL_FILE):
+        print("⚡ Downloading GRU model (.keras) from Google Drive...")
+        gdown.download(f"https://drive.google.com/uc?id={MODEL_FILE_ID}", MODEL_FILE, quiet=False)
+
+    if not os.path.exists(METADATA_FILE):
+        print("⚡ Downloading metadata.json from Google Drive...")
+        gdown.download(f"https://drive.google.com/uc?id={METADATA_FILE_ID}", METADATA_FILE, quiet=False)
+
+    # ---- Lazy load ----
     if gru_model is None:
         from tensorflow.keras.models import load_model
         from tensorflow.keras.preprocessing.text import tokenizer_from_json
 
         with open(METADATA_FILE, "r") as f:
             metadata = json.load(f)
+
         tokenizer = tokenizer_from_json(json.dumps(metadata["tokenizer"]))
         label_encoder = metadata["label_encoder"]
         gru_model = load_model(MODEL_FILE)
-        print("✅ GRU model loaded.")
+
+        print("✅ GRU model loaded successfully.")
     return gru_model
 
 def predict_text(text):
-    load_gru_model()
+    load_gru_model()  # ensures both download + load happen only once
     if tokenizer is None or label_encoder is None:
         return "⚠️ Model metadata missing"
     seq = tokenizer.texts_to_sequences([text])
@@ -77,9 +83,9 @@ def predict_text(text):
     idx = np.argmax(pred_probs, axis=1)[0]
     return label_encoder.get(str(idx), "Unknown")
 
-# ================================
-# Load user-product matrix
-# ================================
+# ============================================================
+# Load user-product matrix (kept local for speed)
+# ============================================================
 user_product_matrix = None
 if os.path.exists("user_product_matrix.csv"):
     user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
@@ -104,15 +110,10 @@ def recommend_products(user_name, top_n=5):
     not_bought = recommended_scores[user_products == 0]
     return not_bought.sort_values(ascending=False).head(top_n).index.tolist()
 
-
-# ================================
-# Function to get review summary + feature importance
-# ================================
+# ============================================================
+# Review summary + feature importance
+# ============================================================
 def summarize_reviews(texts):
-    """
-    texts: list of review strings
-    returns: DataFrame with review, predicted sentiment, top features
-    """
     results = []
     for text in texts:
         sentiment = predict_text(text)
@@ -120,12 +121,10 @@ def summarize_reviews(texts):
 
     df = pd.DataFrame(results)
 
-    # Simple feature importance using TF-IDF scores
     tfidf = TfidfVectorizer(max_features=5, stop_words='english')
     tfidf_matrix = tfidf.fit_transform(texts)
     feature_names = tfidf.get_feature_names_out()
 
-    # Top 5 features per review
     top_features = []
     for i in range(tfidf_matrix.shape[0]):
         row = tfidf_matrix[i].toarray()[0]
@@ -136,10 +135,9 @@ def summarize_reviews(texts):
     df["top_features"] = top_features
     return df
 
-
-# ================================
+# ============================================================
 # Flask Routes
-# ================================
+# ============================================================
 @app.route("/", methods=["GET", "POST"])
 def home():
     prediction = ""
@@ -155,7 +153,7 @@ def home():
         if file:
             lines = [line.decode("utf-8") for line in file.readlines()]
             summary_df = summarize_reviews(lines)
-            prediction = summary_df.to_dict(orient="records")  # send to template
+            prediction = summary_df.to_dict(orient="records")
 
         # Single text input handling
         if text_input:
@@ -186,19 +184,19 @@ def recommend_api():
     recs = recommend_products(user_name, top_n)
     return jsonify({"user": user_name, "recommendations": recs})
 
-# Status endpoint
 @app.route("/status")
 def status():
     return jsonify({
-        "text_model_loaded": gru_model is not None,
-        "recommendation_matrix_loaded": user_product_matrix is not None and not user_product_matrix.empty,
+        "model_downloaded": os.path.exists(MODEL_FILE),
+        "metadata_downloaded": os.path.exists(METADATA_FILE),
+        "gru_loaded": gru_model is not None,
         "users": len(user_product_matrix) if user_product_matrix is not None else 0,
         "products": user_product_matrix.shape[1] if user_product_matrix is not None else 0
     })
 
-# ================================
+# ============================================================
 # Run app
-# ================================
+# ============================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
