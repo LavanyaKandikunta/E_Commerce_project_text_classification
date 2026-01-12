@@ -9,5 +9,5 @@ gdown==5.2.0
 python-dotenv==1.0.1
 joblib==1.4.2
 transformers==4.46.1
-torch==2.13+cpu
+torch==2.13.0
 tensorflow==2.13.0
