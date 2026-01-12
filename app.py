@@ -16,7 +16,14 @@ from tensorflow.keras.preprocessing.text import tokenizer_from_json
 import zipfile
 import gdown
 
-app = Flask(__name__)
+
+# ============================================================
+# Add these optimizations to Reduce memory footprint
+# ============================================================
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TF logs
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU completely
 
 # ============================================================
 # Recommended setup for Render Free Tier
@@ -25,6 +32,9 @@ app = Flask(__name__)
 tf.config.set_visible_devices([], 'GPU')
 tf.get_logger().setLevel('ERROR')
 
+
+
+app = Flask(__name__)
 
 # ============================================================
 # 0️⃣ Download GRU model (.keras) and metadata.json from Google Drive
@@ -169,8 +179,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 # ============================================================
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # ✅ Use Render-assigned port
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
 
 # In[ ]:
