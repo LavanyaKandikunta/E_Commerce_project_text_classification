@@ -1,74 +1,91 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
-from flask import Flask, request, jsonify, render_template
-import os, json, numpy as np, pandas as pd, gdown
+from flask import Flask, render_template, request, jsonify
+import os
+import json
+import numpy as np
+import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from tensorflow.keras.preprocessing.text import tokenizer_from_json
-import tflite_runtime.interpreter as tflite  # ✅ lightweight runtime
+from sklearn.feature_extraction.text import TfidfVectorizer
+import zipfile
+import gdown
 
+# ================================
+# Flask app
+# ================================
 app = Flask(__name__)
 
 # ================================
-# 0️⃣ File paths and Google Drive IDs
+# Environment & memory optimizations
+# ================================
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
+
+# ================================
+# Download GRU model & metadata from Google Drive
 # ================================
 MODEL_DIR = "DL_models"
-MODEL_FILE = os.path.join(MODEL_DIR, "gru_model.tflite")
-METADATA_FILE = os.path.join(MODEL_DIR, "metadata.json")
-
-MODEL_ID = "1ZF9JF-jPkBxAulDdIgkEksLf8dRnbchV"       # 🟢 update with your TFLite Drive ID
-METADATA_ID = "1a_txG7ddnCViQ8bAuI_UPkrBRTqpsOEq"  # your metadata.json ID
-
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# ================================
-# 1️⃣ Download model + metadata if missing
-# ================================
+MODEL_FILE_ID = "1JsCHylh1wStYpPUQCHfMFRrcPYdBM11T"
+METADATA_FILE_ID = "1a_txG7ddnCViQ8bAuI_UPkrBRTqpsOEq"
+
+MODEL_FILE = os.path.join(MODEL_DIR, "gru_model.keras")
+METADATA_FILE = os.path.join(MODEL_DIR, "metadata.json")
+
 if not os.path.exists(MODEL_FILE):
-    print("⚡ Downloading GRU TFLite model from Google Drive...")
-    gdown.download(f"https://drive.google.com/uc?id={MODEL_ID}", MODEL_FILE, quiet=False)
+    print("⚡ Downloading GRU model...")
+    gdown.download(f"https://drive.google.com/uc?id={MODEL_FILE_ID}", MODEL_FILE, quiet=False)
 
 if not os.path.exists(METADATA_FILE):
-    print("⚡ Downloading metadata.json from Google Drive...")
-    gdown.download(f"https://drive.google.com/uc?id={METADATA_ID}", METADATA_FILE, quiet=False)
-
-print("✅ All model files ready.")
+    print("⚡ Downloading metadata.json...")
+    gdown.download(f"https://drive.google.com/uc?id={METADATA_FILE_ID}", METADATA_FILE, quiet=False)
 
 # ================================
-# 2️⃣ Load metadata and TFLite model
+# Lazy-load GRU model + metadata
 # ================================
-with open(METADATA_FILE, "r") as f:
-    metadata = json.load(f)
-tokenizer = tokenizer_from_json(json.dumps(metadata["tokenizer"]))
-label_encoder = metadata["label_encoder"]
+gru_model = None
+tokenizer = None
+label_encoder = None
 
-interpreter = tflite.Interpreter(model_path=MODEL_FILE)
-interpreter.allocate_tensors()
+def load_gru_model():
+    global gru_model, tokenizer, label_encoder
+    if gru_model is None:
+        from tensorflow.keras.models import load_model
+        from tensorflow.keras.preprocessing.text import tokenizer_from_json
 
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+        with open(METADATA_FILE, "r") as f:
+            metadata = json.load(f)
+        tokenizer = tokenizer_from_json(json.dumps(metadata["tokenizer"]))
+        label_encoder = metadata["label_encoder"]
+        gru_model = load_model(MODEL_FILE)
+        print("✅ GRU model loaded.")
+    return gru_model
 
-# ================================
-# 3️⃣ Predict function using TFLite
-# ================================
 def predict_text(text):
-    sequence = tokenizer.texts_to_sequences([text])
-    sequence = np.array(sequence, dtype=np.float32)
-
-    interpreter.set_tensor(input_details[0]['index'], sequence)
-    interpreter.invoke()
-    preds = interpreter.get_tensor(output_details[0]['index'])
-    pred_index = int(np.argmax(preds, axis=1)[0])
-    return label_encoder.get(str(pred_index), "Unknown")
+    load_gru_model()
+    if tokenizer is None or label_encoder is None:
+        return "⚠️ Model metadata missing"
+    seq = tokenizer.texts_to_sequences([text])
+    seq = np.array(seq)
+    pred_probs = gru_model.predict(seq)
+    idx = np.argmax(pred_probs, axis=1)[0]
+    return label_encoder.get(str(idx), "Unknown")
 
 # ================================
-# 4️⃣ Simple recommendation system
+# Load user-product matrix
 # ================================
 user_product_matrix = None
 if os.path.exists("user_product_matrix.csv"):
+    user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
+elif os.path.exists("user_product_matrix.zip"):
+    with zipfile.ZipFile("user_product_matrix.zip", "r") as zip_ref:
+        zip_ref.extractall(".")
     user_product_matrix = pd.read_csv("user_product_matrix.csv", index_col=0)
 
 def recommend_products(user_name, top_n=5):
@@ -77,32 +94,81 @@ def recommend_products(user_name, top_n=5):
     if user_name not in user_product_matrix.index:
         return [f"⚠️ User '{user_name}' not found"]
 
-    user_vector = user_product_matrix.loc[user_name].values.reshape(1, -1)
-    similarity_scores = cosine_similarity(user_vector, user_product_matrix)[0]
-    similarity_df = pd.DataFrame({
-        "user": user_product_matrix.index,
-        "similarity": similarity_scores
-    }).sort_values(by="similarity", ascending=False)
-
-    similar_users = similarity_df[similarity_df["user"] != user_name].head(10)["user"]
+    user_vec = user_product_matrix.loc[user_name].values.reshape(1, -1)
+    sim_scores = cosine_similarity(user_vec, user_product_matrix)[0]
+    sim_df = pd.DataFrame({"user": user_product_matrix.index, "similarity": sim_scores}).sort_values(by="similarity", ascending=False)
+    similar_users = sim_df[sim_df["user"] != user_name].head(10)["user"]
     similar_user_data = user_product_matrix.loc[similar_users]
     recommended_scores = similar_user_data.sum(axis=0)
-
     user_products = user_product_matrix.loc[user_name]
     not_bought = recommended_scores[user_products == 0]
     return not_bought.sort_values(ascending=False).head(top_n).index.tolist()
 
+
 # ================================
-# 5️⃣ Flask Routes
+# Function to get review summary + feature importance
+# ================================
+def summarize_reviews(texts):
+    """
+    texts: list of review strings
+    returns: DataFrame with review, predicted sentiment, top features
+    """
+    results = []
+    for text in texts:
+        sentiment = predict_text(text)
+        results.append({"review": text, "sentiment": sentiment})
+
+    df = pd.DataFrame(results)
+
+    # Simple feature importance using TF-IDF scores
+    tfidf = TfidfVectorizer(max_features=5, stop_words='english')
+    tfidf_matrix = tfidf.fit_transform(texts)
+    feature_names = tfidf.get_feature_names_out()
+
+    # Top 5 features per review
+    top_features = []
+    for i in range(tfidf_matrix.shape[0]):
+        row = tfidf_matrix[i].toarray()[0]
+        top_idx = row.argsort()[-5:][::-1]
+        top_words = [feature_names[idx] for idx in top_idx if row[idx] > 0]
+        top_features.append(", ".join(top_words))
+
+    df["top_features"] = top_features
+    return df
+
+
+# ================================
+# Flask Routes
 # ================================
 @app.route("/", methods=["GET", "POST"])
 def home():
     prediction = ""
+    recommendations = []
+    summary_df = None
+
     if request.method == "POST":
-        text = request.form.get("text_input")
-        if text:
-            prediction = predict_text(text)
-    return render_template("index.html", prediction=prediction)
+        text_input = request.form.get("text_input")
+        user_name = request.form.get("user_name")
+        file = request.files.get("file_input")
+
+        # File upload handling
+        if file:
+            lines = [line.decode("utf-8") for line in file.readlines()]
+            summary_df = summarize_reviews(lines)
+            prediction = summary_df.to_dict(orient="records")  # send to template
+
+        # Single text input handling
+        if text_input:
+            prediction = predict_text(text_input)
+
+        # Product recommendations
+        if user_name:
+            recommendations = recommend_products(user_name)
+
+    return render_template("index.html",
+                           prediction=prediction,
+                           recommendations=recommendations,
+                           summary=summary_df)
 
 @app.route("/predict", methods=["POST"])
 def predict_api():
@@ -110,8 +176,7 @@ def predict_api():
     text = data.get("text", "")
     if not text:
         return jsonify({"error": "No text provided"}), 400
-    label = predict_text(text)
-    return jsonify({"text": text, "prediction": label})
+    return jsonify({"text": text, "prediction": predict_text(text)})
 
 @app.route("/recommend", methods=["POST"])
 def recommend_api():
@@ -121,19 +186,22 @@ def recommend_api():
     recs = recommend_products(user_name, top_n)
     return jsonify({"user": user_name, "recommendations": recs})
 
+# Status endpoint
 @app.route("/status")
 def status():
     return jsonify({
-        "tflite_model_loaded": True,
-        "metadata_loaded": tokenizer is not None,
-        "recommendation_data": user_product_matrix is not None
+        "text_model_loaded": gru_model is not None,
+        "recommendation_matrix_loaded": user_product_matrix is not None and not user_product_matrix.empty,
+        "users": len(user_product_matrix) if user_product_matrix is not None else 0,
+        "products": user_product_matrix.shape[1] if user_product_matrix is not None else 0
     })
 
 # ================================
-# 6️⃣ Run Flask
+# Run app
 # ================================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 # In[ ]:

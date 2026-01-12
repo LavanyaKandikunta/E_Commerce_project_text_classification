@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sentiment & Recommendation App</title>
+</head>
+<body>
+    <h1>Sentiment Analysis & Product Recommendation</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <h2>Text Input for Sentiment Analysis</h2>
+        <textarea name="text_input" rows="4" cols="50" placeholder="Enter your text here"></textarea><br><br>
+
+        <h2>Upload File for Sentiment Analysis (each line is a review)</h2>
+        <input type="file" name="file_input"><br><br>
+
+        <h2>User Name for Product Recommendations</h2>
+        <input type="text" name="user_name" placeholder="Enter user name"><br><br>
+
+        <input type="submit" value="Submit">
+    </form>
+
+    {% if prediction %}
+        <h3>Sentiment Prediction:</h3>
+        <p>{{ prediction }}</p>
+    {% endif %}
+
+    {% if summary %}
+    <h3>Review Summary:</h3>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Review</th>
+            <th>Predicted Sentiment</th>
+            <th>Top Features</th>
+        </tr>
+        {% for row in summary.itertuples() %}
+        <tr>
+            <td>{{ row.review }}</td>
+            <td>{{ row.sentiment }}</td>
+            <td>{{ row.top_features }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if recommendations %}
+        <h3>Recommended Products:</h3>
+        <ol>
+        {% for item in recommendations %}
+            <li>{{ item }}</li>
+        {% endfor %}
+        </ol>
+    {% endif %}
+</body>
+</html>
