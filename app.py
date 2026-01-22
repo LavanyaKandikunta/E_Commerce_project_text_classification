@@ -9,8 +9,11 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import joblib
 from sklearn.metrics.pairwise import cosine_similarity
 import gdown, zipfile
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
 
 app = Flask(__name__)
 
@@ -73,36 +76,42 @@ def predict_text_gru(text):
 # ============================================================
 # 2️⃣ BERT model setup (for model.safetensors)
 # ============================================================
-from transformers import BertTokenizer, BertForSequenceClassification
-import torch
 
 BERT_MODEL_DIR = "DL_models/bert_finetuned"
 
 bert_tokenizer = None
 bert_model = None
 
+BERT_LABEL_ENCODER_FILE = os.path.join(BERT_MODEL_DIR, "label_encoder.pkl")
+bert_label_encoder = None
+
 def load_bert_model():
-    """
-    Lazy loads your fine-tuned BERT model that uses .safetensors format.
-    Hugging Face automatically detects and reads .safetensors files.
-    """
-    global bert_model, bert_tokenizer
+    global bert_model, bert_tokenizer, bert_label_encoder
     if bert_model is None:
         print("⚡ Loading fine-tuned BERT model (.safetensors)...")
         bert_tokenizer = BertTokenizer.from_pretrained(BERT_MODEL_DIR)
         bert_model = BertForSequenceClassification.from_pretrained(
             BERT_MODEL_DIR,
-            from_tf=False,      # ensure we use PyTorch weights
+            from_tf=False,
             torch_dtype=torch.float32,
         )
-        bert_model.eval()  # inference mode (disables gradients)
-        print("✅ Fine-tuned BERT model loaded successfully (safetensors).")
+        bert_model.eval()  # inference mode
+
+        # Load label encoder
+        if os.path.exists(BERT_LABEL_ENCODER_FILE):
+            bert_label_encoder = joblib.load(BERT_LABEL_ENCODER_FILE)
+            print("✅ BERT label encoder loaded successfully.")
+        else:
+            print("⚠️ label_encoder.pkl not found for BERT!")
+
+        print("✅ Fine-tuned BERT model loaded successfully.")
     return bert_model
 
 
 def predict_text_bert(text):
-    if bert_model is None or bert_tokenizer is None:
-        return "⚠️ BERT model not loaded"
+    load_bert_model()
+    if bert_model is None or bert_tokenizer is None or bert_label_encoder is None:
+        return "⚠️ BERT model not fully loaded"
 
     inputs = bert_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     with torch.no_grad():
@@ -110,8 +119,8 @@ def predict_text_bert(text):
         logits = outputs.logits
         pred_id = torch.argmax(logits, dim=1).item()
 
-    # Convert model ID to human-readable label
-    pred_label = bert_label_map.get(pred_id, "Unknown")
+    # Use label encoder to decode
+    pred_label = bert_label_encoder.inverse_transform([pred_id])[0]
     return pred_label
 
 
