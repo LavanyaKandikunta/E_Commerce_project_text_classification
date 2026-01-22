@@ -10,24 +10,18 @@ import json
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
-import zipfile
-import gdown
+import gdown, zipfile
 
-# ============================================================
-# Flask app
-# ============================================================
 app = Flask(__name__)
 
 # ============================================================
-# Environment & memory optimizations
+# 0️⃣ Environment setup for Render Free/Starter Tier
 # ============================================================
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
 
 # ============================================================
-# Model & metadata locations (lazy download)
+# 1️⃣ GRU model setup
 # ============================================================
 MODEL_DIR = "DL_models"
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -38,57 +32,92 @@ METADATA_FILE_ID = "1a_txG7ddnCViQ8bAuI_UPkrBRTqpsOEq"
 MODEL_FILE = os.path.join(MODEL_DIR, "gru_model.keras")
 METADATA_FILE = os.path.join(MODEL_DIR, "metadata.json")
 
-# ============================================================
-# Lazy-load GRU model + metadata + download only when needed
-# ============================================================
+if not os.path.exists(MODEL_FILE):
+    print("⚡ Downloading GRU model (.keras)...")
+    gdown.download(f"https://drive.google.com/uc?id={MODEL_FILE_ID}", MODEL_FILE, quiet=False)
+
+if not os.path.exists(METADATA_FILE):
+    print("⚡ Downloading metadata.json...")
+    gdown.download(f"https://drive.google.com/uc?id={METADATA_FILE_ID}", METADATA_FILE, quiet=False)
+
 gru_model = None
 tokenizer = None
 label_encoder = None
 
 def load_gru_model():
-    """Downloads and loads the GRU model + metadata only when needed."""
     global gru_model, tokenizer, label_encoder
-
-    # ---- Lazy download ----
-    if not os.path.exists(MODEL_FILE):
-        print("⚡ Downloading GRU model (.keras) from Google Drive...")
-        gdown.download(f"https://drive.google.com/uc?id={MODEL_FILE_ID}", MODEL_FILE, quiet=False)
-
-    if not os.path.exists(METADATA_FILE):
-        print("⚡ Downloading metadata.json from Google Drive...")
-        gdown.download(f"https://drive.google.com/uc?id={METADATA_FILE_ID}", METADATA_FILE, quiet=False)
-
-    # ---- Lazy load ----
     if gru_model is None:
+        import tensorflow as tf
         from tensorflow.keras.models import load_model
         from tensorflow.keras.preprocessing.text import tokenizer_from_json
-        import tensorflow as tf
-
-        tf.config.set_visible_devices([], 'GPU')
-        tf.get_logger().setLevel('ERROR')
 
         with open(METADATA_FILE, "r") as f:
             metadata = json.load(f)
-
         tokenizer = tokenizer_from_json(json.dumps(metadata["tokenizer"]))
         label_encoder = metadata["label_encoder"]
-        gru_model = load_model(MODEL_FILE)
 
+        gru_model = load_model(MODEL_FILE)
         print("✅ GRU model loaded successfully.")
     return gru_model
 
-def predict_text(text):
-    load_gru_model()  # ensures both download + load happen only once
-    if tokenizer is None or label_encoder is None:
-        return "⚠️ Model metadata missing"
+def predict_text_gru(text):
+    load_gru_model()
     seq = tokenizer.texts_to_sequences([text])
     seq = np.array(seq)
     pred_probs = gru_model.predict(seq)
-    idx = np.argmax(pred_probs, axis=1)[0]
-    return label_encoder.get(str(idx), "Unknown")
+    pred_index = np.argmax(pred_probs, axis=1)[0]
+    return label_encoder.get(str(pred_index), "Unknown")
+
+
 
 # ============================================================
-# Load user-product matrix (kept local for speed)
+# 2️⃣ BERT model setup (for model.safetensors)
+# ============================================================
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
+
+BERT_MODEL_DIR = "DL_models/bert_finetuned"
+
+bert_tokenizer = None
+bert_model = None
+
+def load_bert_model():
+    """
+    Lazy loads your fine-tuned BERT model that uses .safetensors format.
+    Hugging Face automatically detects and reads .safetensors files.
+    """
+    global bert_model, bert_tokenizer
+    if bert_model is None:
+        print("⚡ Loading fine-tuned BERT model (.safetensors)...")
+        bert_tokenizer = BertTokenizer.from_pretrained(BERT_MODEL_DIR)
+        bert_model = BertForSequenceClassification.from_pretrained(
+            BERT_MODEL_DIR,
+            from_tf=False,      # ensure we use PyTorch weights
+            torch_dtype=torch.float32,
+        )
+        bert_model.eval()  # inference mode (disables gradients)
+        print("✅ Fine-tuned BERT model loaded successfully (safetensors).")
+    return bert_model
+
+
+def predict_text_bert(text):
+    if bert_model is None or bert_tokenizer is None:
+        return "⚠️ BERT model not loaded"
+
+    inputs = bert_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    with torch.no_grad():
+        outputs = bert_model(**inputs)
+        logits = outputs.logits
+        pred_id = torch.argmax(logits, dim=1).item()
+
+    # Convert model ID to human-readable label
+    pred_label = bert_label_map.get(pred_id, "Unknown")
+    return pred_label
+
+
+
+# ============================================================
+# 3️⃣ Recommendation system
 # ============================================================
 user_product_matrix = None
 if os.path.exists("user_product_matrix.csv"):
@@ -115,99 +144,59 @@ def recommend_products(user_name, top_n=5):
     return not_bought.sort_values(ascending=False).head(top_n).index.tolist()
 
 # ============================================================
-# Review summary + feature importance
-# ============================================================
-def summarize_reviews(texts):
-    results = []
-    for text in texts:
-        sentiment = predict_text(text)
-        results.append({"review": text, "sentiment": sentiment})
-
-    df = pd.DataFrame(results)
-
-    tfidf = TfidfVectorizer(max_features=5, stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(texts)
-    feature_names = tfidf.get_feature_names_out()
-
-    top_features = []
-    for i in range(tfidf_matrix.shape[0]):
-        row = tfidf_matrix[i].toarray()[0]
-        top_idx = row.argsort()[-5:][::-1]
-        top_words = [feature_names[idx] for idx in top_idx if row[idx] > 0]
-        top_features.append(", ".join(top_words))
-
-    df["top_features"] = top_features
-    return df
-
-# ============================================================
-# Flask Routes
+# 4️⃣ Flask Routes
 # ============================================================
 @app.route("/", methods=["GET", "POST"])
 def home():
-    prediction = ""
+    prediction_gru = None
+    prediction_bert = None
     recommendations = []
-    summary_df = None
-
     if request.method == "POST":
         text_input = request.form.get("text_input")
         user_name = request.form.get("user_name")
-        file = request.files.get("file_input")
 
-        # File upload handling
-        if file:
-            lines = [line.decode("utf-8") for line in file.readlines()]
-            summary_df = summarize_reviews(lines)
-            prediction = summary_df.to_dict(orient="records")
-
-        # Single text input handling
         if text_input:
-            prediction = predict_text(text_input)
+            prediction_gru = predict_text_gru(text_input)
+            prediction_bert = predict_text_bert(text_input)
 
-        # Product recommendations
         if user_name:
             recommendations = recommend_products(user_name)
-
     return render_template("index.html",
-                           prediction=prediction,
-                           recommendations=recommendations,
-                           summary=summary_df)
+                           prediction_gru=prediction_gru,
+                           prediction_bert=prediction_bert,
+                           recommendations=recommendations)
 
-@app.route("/predict", methods=["POST"])
-def predict_api():
-    data = request.get_json(force=True)
+@app.route("/predict/gru", methods=["POST"])
+def api_gru():
+    data = request.get_json()
     text = data.get("text", "")
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
-    return jsonify({"text": text, "prediction": predict_text(text)})
+    return jsonify({"model": "GRU", "prediction": predict_text_gru(text)})
+
+@app.route("/predict/bert", methods=["POST"])
+def api_bert():
+    data = request.get_json()
+    text = data.get("text", "")
+    return jsonify({"model": "BERT", "prediction": predict_text_bert(text)})
 
 @app.route("/recommend", methods=["POST"])
-def recommend_api():
-    data = request.get_json(force=True)
-    user_name = data.get("user")
-    top_n = data.get("top_n", 5)
-    recs = recommend_products(user_name, top_n)
-    return jsonify({"user": user_name, "recommendations": recs})
+def api_recommend():
+    data = request.get_json()
+    user = data.get("user")
+    recs = recommend_products(user)
+    return jsonify({"user": user, "recommendations": recs})
 
 @app.route("/status")
 def status():
     return jsonify({
-        "model_downloaded": os.path.exists(MODEL_FILE),
-        "metadata_downloaded": os.path.exists(METADATA_FILE),
         "gru_loaded": gru_model is not None,
-        "users": len(user_product_matrix) if user_product_matrix is not None else 0,
-        "products": user_product_matrix.shape[1] if user_product_matrix is not None else 0
+        "bert_loaded": bert_model is not None,
+        "users": len(user_product_matrix) if user_product_matrix is not None else 0
     })
 
 # ============================================================
-# Run app
+# 5️⃣ Run app
 # ============================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
-# In[ ]:
-
-
-
 

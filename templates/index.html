@@ -1,55 +1,55 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Sentiment & Recommendation App</title>
+    <meta charset="UTF-8">
+    <title>Multi-Model Sentiment & Recommendation App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f8f9fa; }
+        h1 { color: #333; }
+        form { margin-bottom: 20px; }
+        input[type="text"], textarea { width: 100%; padding: 8px; margin: 5px 0 10px 0; box-sizing: border-box; }
+        button { padding: 10px 20px; margin-top: 5px; cursor: pointer; }
+        .result { background-color: #fff; padding: 15px; border-radius: 6px; box-shadow: 0 0 5px rgba(0,0,0,0.1); margin-top: 15px; }
+        .label { font-weight: bold; }
+    </style>
 </head>
 <body>
     <h1>Sentiment Analysis & Product Recommendation</h1>
 
-    <form method="POST" enctype="multipart/form-data">
-        <h2>Text Input for Sentiment Analysis</h2>
-        <textarea name="text_input" rows="4" cols="50" placeholder="Enter your text here"></textarea><br><br>
+    <form method="POST">
+        <label for="text_input">Enter text for sentiment analysis:</label>
+        <textarea name="text_input" id="text_input" rows="3" placeholder="Type your text here...">{{ request.form.get('text_input', '') }}</textarea>
 
-        <h2>Upload File for Sentiment Analysis (each line is a review)</h2>
-        <input type="file" name="file_input"><br><br>
+        <label for="user_name">Enter your username for recommendations:</label>
+        <input type="text" name="user_name" id="user_name" placeholder="Type your username here..." value="{{ request.form.get('user_name', '') }}">
 
-        <h2>User Name for Product Recommendations</h2>
-        <input type="text" name="user_name" placeholder="Enter user name"><br><br>
-
-        <input type="submit" value="Submit">
+        <button type="submit">Submit</button>
     </form>
 
-    {% if prediction %}
-        <h3>Sentiment Prediction:</h3>
-        <p>{{ prediction }}</p>
+    {% if prediction_gru %}
+    <div class="result">
+        <p class="label">GRU Sentiment Prediction:</p>
+        <p>{{ prediction_gru }}</p>
+    </div>
     {% endif %}
 
-    {% if summary %}
-    <h3>Review Summary:</h3>
-    <table border="1" cellpadding="5">
-        <tr>
-            <th>Review</th>
-            <th>Predicted Sentiment</th>
-            <th>Top Features</th>
-        </tr>
-        {% for row in summary.itertuples() %}
-        <tr>
-            <td>{{ row.review }}</td>
-            <td>{{ row.sentiment }}</td>
-            <td>{{ row.top_features }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    {% if prediction_bert %}
+    <div class="result">
+        <p class="label">BERT Sentiment Prediction:</p>
+        <p>{{ prediction_bert }}</p>
+    </div>
     {% endif %}
 
     {% if recommendations %}
-        <h3>Recommended Products:</h3>
-        <ol>
-        {% for item in recommendations %}
-            <li>{{ item }}</li>
-        {% endfor %}
-        </ol>
+    <div class="result">
+        <p class="label">Recommended Products:</p>
+        <ul>
+            {% for item in recommendations %}
+                <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
     {% endif %}
 </body>
 </html>
