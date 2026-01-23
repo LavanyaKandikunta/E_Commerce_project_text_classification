@@ -206,6 +206,12 @@ def status():
 # 5️⃣ Run app
 # ============================================================
 if __name__ == "__main__":
+    import os  # ✅ Needed to read environment variables
+
+    # Render dynamically assigns a port — use it
     port = int(os.environ.get("PORT", 10000))
+    print(f"🚀 Flask starting on port {port}", flush=True)
+
+    # Bind to all interfaces so Render can detect it
     app.run(host="0.0.0.0", port=port, debug=False)
 
