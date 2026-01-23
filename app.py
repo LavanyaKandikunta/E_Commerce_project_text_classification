@@ -21,6 +21,8 @@ app = Flask(__name__)
 # 0️⃣ Environment setup for Render Free/Starter Tier
 # ============================================================
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+torch.set_grad_enabled(False)
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 # ============================================================
@@ -209,7 +211,7 @@ if __name__ == "__main__":
     import os  # ✅ Needed to read environment variables
 
     # Render dynamically assigns a port — use it
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Flask starting on port {port}", flush=True)
 
     # Bind to all interfaces so Render can detect it
