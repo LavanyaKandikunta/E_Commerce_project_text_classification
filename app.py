@@ -9,11 +9,8 @@ import os
 import json
 import numpy as np
 import pandas as pd
-import joblib
 from sklearn.metrics.pairwise import cosine_similarity
 import gdown, zipfile
-from transformers import BertTokenizer, BertForSequenceClassification
-import torch
 
 app = Flask(__name__)
 
@@ -21,8 +18,6 @@ app = Flask(__name__)
 # 0️⃣ Environment setup for Render Free/Starter Tier
 # ============================================================
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-torch.set_grad_enabled(False)
-
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 # ============================================================
@@ -74,21 +69,22 @@ def predict_text_gru(text):
     return label_encoder.get(str(pred_index), "Unknown")
 
 
-
 # ============================================================
-# 2️⃣ BERT model setup (for model.safetensors)
+# 2️⃣ BERT model setup (with .safetensors and label_encoder.pkl)
 # ============================================================
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
+import joblib
 
 BERT_MODEL_DIR = "DL_models/bert_finetuned"
+LABEL_ENCODER_FILE = os.path.join(BERT_MODEL_DIR, "label_encoder.pkl")
 
 bert_tokenizer = None
 bert_model = None
-
-BERT_LABEL_ENCODER_FILE = os.path.join(BERT_MODEL_DIR, "label_encoder.pkl")
-bert_label_encoder = None
+bert_label_map = None
 
 def load_bert_model():
-    global bert_model, bert_tokenizer, bert_label_encoder
+    global bert_model, bert_tokenizer, bert_label_map
     if bert_model is None:
         print("⚡ Loading fine-tuned BERT model (.safetensors)...")
         bert_tokenizer = BertTokenizer.from_pretrained(BERT_MODEL_DIR)
@@ -97,34 +93,25 @@ def load_bert_model():
             from_tf=False,
             torch_dtype=torch.float32,
         )
-        bert_model.eval()  # inference mode
+        bert_model.eval()
 
         # Load label encoder
-        if os.path.exists(BERT_LABEL_ENCODER_FILE):
-            bert_label_encoder = joblib.load(BERT_LABEL_ENCODER_FILE)
-            print("✅ BERT label encoder loaded successfully.")
+        if os.path.exists(LABEL_ENCODER_FILE):
+            bert_label_map = joblib.load(LABEL_ENCODER_FILE)
         else:
-            print("⚠️ label_encoder.pkl not found for BERT!")
+            bert_label_map = {0: "LABEL_0", 1: "LABEL_1", 2: "LABEL_2"}
 
         print("✅ Fine-tuned BERT model loaded successfully.")
     return bert_model
 
-
 def predict_text_bert(text):
     load_bert_model()
-    if bert_model is None or bert_tokenizer is None or bert_label_encoder is None:
-        return "⚠️ BERT model not fully loaded"
-
     inputs = bert_tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     with torch.no_grad():
         outputs = bert_model(**inputs)
         logits = outputs.logits
         pred_id = torch.argmax(logits, dim=1).item()
-
-    # Use label encoder to decode
-    pred_label = bert_label_encoder.inverse_transform([pred_id])[0]
-    return pred_label
-
+    return bert_label_map.get(pred_id, "Unknown")
 
 
 # ============================================================
@@ -153,6 +140,7 @@ def recommend_products(user_name, top_n=5):
     user_products = user_product_matrix.loc[user_name]
     not_bought = recommended_scores[user_products == 0]
     return not_bought.sort_values(ascending=False).head(top_n).index.tolist()
+
 
 # ============================================================
 # 4️⃣ Flask Routes
@@ -204,19 +192,13 @@ def status():
         "users": len(user_product_matrix) if user_product_matrix is not None else 0
     })
 
-# ============================================================
-# 5️⃣ Run app
-# ============================================================
-# Render fails to detect the port when using Flask’s internal dev server,
-# so we use waitress, it is production-ready and always binds properly.
 
+# ============================================================
+# 5️⃣ Run app with Waitress (production-ready)
+# ============================================================
 if __name__ == "__main__":
-    import os
-    from waitress import serve  # 👈 reliable alternative to Flask’s built-in server
-
-    port = int(os.environ.get("PORT", 10000))
+    from waitress import serve
+    port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Starting app on 0.0.0.0:{port}", flush=True)
-
-    # Use Waitress (more stable on Render than Flask dev server)
     serve(app, host="0.0.0.0", port=port)
 
