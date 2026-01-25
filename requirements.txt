@@ -1,20 +1,12 @@
 
-# Web framework
 Flask==3.0.3
-waitress==3.0.2
 gunicorn==21.2.0
-
-# Data science
 numpy==1.26.4
 pandas==2.2.2
 scipy==1.14.1
 scikit-learn==1.5.0
 joblib==1.5.1
 python-dotenv==1.0.1
-
-# TensorFlow (GRU model)
 tensorflow>=2.18.0,<2.20.0
-
-# PyTorch + Transformers (BERT model)
-torch==2.9.1+cpu
+torch>=2.13.0,<2.21.0
 transformers==4.46.1

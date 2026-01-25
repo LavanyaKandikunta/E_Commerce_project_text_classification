@@ -198,7 +198,7 @@ def status():
 # ============================================================
 if __name__ == "__main__":
     from waitress import serve
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     print(f"🚀 Starting app on 0.0.0.0:{port}", flush=True)
     serve(app, host="0.0.0.0", port=port)
 
