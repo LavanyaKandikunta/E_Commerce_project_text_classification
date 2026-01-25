@@ -1,9 +1,23 @@
 
+# =========================================
+# Render web service configuration
+# =========================================
 services:
   - type: web
-    name: ecom-text-ai
+    name: e-commerce-sentiment-app
     env: python
-    plan: standard
-    buildCommand: pip install --no-cache-dir -r requirements.txt
+    plan: free  # You can upgrade to Starter or Standard for more memory
+    branch: main
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: python app.py
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"   # Render dynamically assigns PORT, waitress reads it
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: "3"       # Suppress TensorFlow logs
+      - key: CUDA_VISIBLE_DEVICES
+        value: "-1"      # Force CPU usage
     healthCheckPath: /status
+    region: oregon
+    logStreamingEnabled: true
