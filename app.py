@@ -207,13 +207,16 @@ def status():
 # ============================================================
 # 5️⃣ Run app
 # ============================================================
+# Render fails to detect the port when using Flask’s internal dev server,
+# so we use waitress, it is production-ready and always binds properly.
+
 if __name__ == "__main__":
-    import os  # ✅ Needed to read environment variables
+    import os
+    from waitress import serve  # 👈 reliable alternative to Flask’s built-in server
 
-    # Render dynamically assigns a port — use it
-    port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Flask starting on port {port}", flush=True)
+    port = int(os.environ.get("PORT", 10000))
+    print(f"🚀 Starting app on 0.0.0.0:{port}", flush=True)
 
-    # Bind to all interfaces so Render can detect it
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Use Waitress (more stable on Render than Flask dev server)
+    serve(app, host="0.0.0.0", port=port)
 
