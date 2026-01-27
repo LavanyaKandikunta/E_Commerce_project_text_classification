@@ -127,7 +127,7 @@ Project: Credit Card Fraud Detection, NLP for E-Commerce Reviews
 LinkedIn: linkedin.com/in/dr-lavanya-kandikunta-a404285a
 
 
-
+## Screen shot 
 
 
 
