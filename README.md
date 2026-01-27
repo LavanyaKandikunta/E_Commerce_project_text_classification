@@ -41,17 +41,14 @@ It is designed for deployment on **Render** (Standard or higher plan).
 
 E_Commerce_project_text_classification/
 │
-├── app.py # Main Flask app
-
-├── templates/
-│ └── index.html # Web UI
-
-├── DL_models/
-│ ├── gru_model.keras # GRU model file (downloaded at runtime)
-│ ├── metadata.json # GRU tokenizer + label encoder
-│ ├── bert_finetuned/ # Fine-tuned BERT model directory
-│ └── user_product_matrix.csv # User-item interaction data
-
+├── app.py # Main Flask app   
+├── templates/   
+│ └── index.html # Web UI   
+├── DL_models/   
+│ ├── gru_model.keras # GRU model file (downloaded at runtime)   
+│ ├── metadata.json # GRU tokenizer + label encoder   
+│ ├── bert_finetuned/ # Fine-tuned BERT model directory   
+│ └── user_product_matrix.csv # User-item interaction data   
 ├── requirements.txt   
 ├── render.yaml   
 ├── gunicorn.conf.py   
