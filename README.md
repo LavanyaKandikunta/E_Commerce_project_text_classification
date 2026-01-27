@@ -126,8 +126,26 @@ Executive PG Program in AI and ML
 Project: Credit Card Fraud Detection, NLP for E-Commerce Reviews
 LinkedIn: linkedin.com/in/dr-lavanya-kandikunta-a404285a
 
+## 🖼️ Screenshots
 
-## Screen shot 
+### 🏠 Home Page
+Displays input form for text classification and user recommendation.
+
+![Home Page](assets/home_ui.png)
+
+---
+
+### 🤖 Prediction Results
+Shows GRU and BERT sentiment outputs.
+
+![Predictions](assets/predictions_ui.png)
+
+---
+
+### 💡 Product Recommendations
+Displays recommended products for a selected user.
+
+![Recommendations](assets/recommendations_ui.png)
 
 
 
